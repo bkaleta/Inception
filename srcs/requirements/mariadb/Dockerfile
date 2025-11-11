@@ -1,5 +1,5 @@
 # Setting alpine to be OS for this image
-FROM alpine:3.18
+FROM alpine:3.19
 
 # Installing MariaDB and additional tools needed
 RUN apk update && apk add --no-cache mariadb mariadb-client bash openrc

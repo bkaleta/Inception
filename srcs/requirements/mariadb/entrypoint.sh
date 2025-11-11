@@ -2,23 +2,32 @@
 set -e
 
 DB_DIR="/var/lib/mysql"
+DB_NAME="${DB_NAME:-${MYSQL_DATABASE}}"
+DB_USER="${DB_USER:-${MYSQL_USER}}"
+DB_PASS="$(cat "${DB_PASSWORD_FILE}")"
+ROOT_PASS="$(cat "${DB_ROOT_PASSWORD_FILE}")"
 
-# Inicjalizacja bazy danych przy pierwszym uruchomieniu
+# init przy 1. starcie
 if [ ! -d "$DB_DIR/mysql" ]; then
     echo "Initializing MariaDB data directory..."
     mysql_install_db --user=mysql --datadir="$DB_DIR" > /dev/null
 
-    # Uruchomienie tymczasowego serwera bez sieci
     mysqld --user=mysql --skip-networking &
-    sleep 5
+    pid="$!"
+    # czekamy aż serwer wstanie
+    for i in $(seq 1 20); do
+        mysqladmin ping 2>/dev/null && break
+        sleep 1
+    done
 
-    echo "Creating database and user..."
-    mysql -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
-    mysql -e "CREATE USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-    mysql -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';"
-    mysql -e "FLUSH PRIVILEGES;"
+    echo "Configuring database and users..."
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PASS}';"
+    mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;"
+    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';"
+    mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%'; FLUSH PRIVILEGES;"
 
-    mysqladmin shutdown
+    mysqladmin shutdown -p"${ROOT_PASS}"
+    wait "$pid" || true
 fi
 
 echo "Starting MariaDB..."
