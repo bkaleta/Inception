@@ -13,7 +13,7 @@ if [ ! -f /etc/ssl/private/nginx-selfsigned.key ]; then
 fi
 
 # Upewnij się, że katalog istnieje i jest czytelny dla nginx
-mkdir -p /var/www/html
-chmod 755 /var/www /var/www/html
+# mkdir -p /var/www/html
+# chmod 755 /var/www /var/www/html
 
 exec "$@"

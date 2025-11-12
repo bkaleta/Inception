@@ -19,7 +19,7 @@ services:
       - db_password
       - db_root_password
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$(cat /run/secrets/db_root_password) || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin --protocol=socket -uroot -p$$(cat /run/secrets/db_root_password) ping -S /run/mysqld/mysqld.sock || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20

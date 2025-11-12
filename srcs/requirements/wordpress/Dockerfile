@@ -4,7 +4,12 @@ FROM alpine:3.19
 RUN apk add --no-cache \
     php82 php82-fpm php82-mysqli php82-opcache php82-phar php82-json \
     php82-mbstring php82-curl php82-xml php82-zip php82-session \
-    curl ca-certificates bash shadow
+    curl ca-certificates bash shadow mariadb-client
+
+# ✅ Zwiększamy limity pamięci i rozmiaru uploadu
+RUN sed -ri 's|^;?\s*memory_limit\s*=.*$|memory_limit = 256M|' /etc/php82/php.ini \
+ && sed -ri 's|^;?\s*post_max_size\s*=.*$|post_max_size = 64M|' /etc/php82/php.ini \
+ && sed -ri 's|^;?\s*upload_max_filesize\s*=.*$|upload_max_filesize = 64M|' /etc/php82/php.ini
 
 # php-fpm na TCP:9000 (zamiast socketa)
 RUN sed -ri 's|^;?listen = .*$|listen = 9000|' /etc/php82/php-fpm.d/www.conf \
