@@ -1,37 +1,34 @@
-FROM alpine:3.19
+FROM alpine:3.22
 
-# PHP-FPM + rozsądne rozszerzenia do WP
-RUN apk add --no-cache \
-    php82 php82-fpm php82-mysqli php82-opcache php82-phar php82-json \
-    php82-mbstring php82-curl php82-xml php82-zip php82-session \
-    curl ca-certificates bash shadow mariadb-client
+RUN apk update && apk upgrade
+RUN apk add --no-cache php82 php82-fpm php82-mysqli bash unzip curl openssl
 
-# ✅ Zwiększamy limity pamięci i rozmiaru uploadu
-RUN sed -ri 's|^;?\s*memory_limit\s*=.*$|memory_limit = 256M|' /etc/php82/php.ini \
- && sed -ri 's|^;?\s*post_max_size\s*=.*$|post_max_size = 64M|' /etc/php82/php.ini \
- && sed -ri 's|^;?\s*upload_max_filesize\s*=.*$|upload_max_filesize = 64M|' /etc/php82/php.ini
+# Create system user and group 'www_data' (Alpine-safe)
+RUN addgroup -S www_data && \
+    adduser -S -G www_data -h /var/www -s /sbin/nologin www_data
 
-# php-fpm na TCP:9000 (zamiast socketa)
-RUN sed -ri 's|^;?listen = .*$|listen = 9000|' /etc/php82/php-fpm.d/www.conf \
- && sed -ri 's|^user = .*|user = nobody|' /etc/php82/php-fpm.d/www.conf \
- && sed -ri 's|^group = .*|group = nogroup|' /etc/php82/php-fpm.d/www.conf
+# Create WordPress directory and set ownership
+# /var/www/html będzie docelowym woluminem
+RUN mkdir -p /var/www/html && chown -R www_data:www_data /var/www/html
 
-# WP-CLI
-RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
-      -o /usr/local/bin/wp && chmod +x /usr/local/bin/wp
+# --- POPRAWKA: Pobieramy pliki do TYMCZASOWEGO katalogu ---
+WORKDIR /tmp
+RUN mkdir -p /usr/src/wordpress && chown -R www_data:www_data /usr/src/wordpress
+RUN curl -o wordpress.tar.gz -fSL https://wordpress.org/latest.tar.gz && \
+    tar -xzf wordpress.tar.gz -C /usr/src/wordpress --strip-components=1 && \
+    rm wordpress.tar.gz
 
-# Katalog na WP
-RUN mkdir -p /var/www/html && chown -R nobody:nogroup /var/www
+# --- KONIEC POPRAWKI ---
 
-# Entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+WORKDIR /var/www/html
 
-VOLUME ["/var/www/html"]
+RUN sed -i 's|^listen = .*|listen = 9000|' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's|^user = .*|user = www_data|' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's|^group = .*|group = www_data|' /etc/php82/php-fpm.d/www.conf
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 9000
 
-HEALTHCHECK --interval=10s --timeout=3s --retries=30 \
-  CMD php82 -r 'exit(!is_file("/var/www/html/wp-config.php"));'
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["php-fpm82","-F"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -1,20 +1,40 @@
 FROM alpine:3.19
 
-RUN apk add --no-cache nginx openssl curl bash
+# Używamy ARG, aby móc zdefiniować nazwę użytkownika/domeny podczas budowania
+ARG USER_CN=bkaleta
 
-# Czyści defaulty i dodaje naszą konf
+RUN apk update && \
+    apk add --no-cache nginx openssl bash
+
+# Tworzenie katalogów SSL
+RUN mkdir -p /etc/nginx/ssl
+
+# Generowanie certyfikatu SSL i klucza
+# Używamy ścieżek z Twoim loginem: /etc/nginx/ssl/bkaleta.crt i bkaleta.key
+RUN openssl req -newkey rsa:4096 -x509 -sha256 -days 365 -nodes \
+        -out /etc/nginx/ssl/${USER_CN}.crt \
+        -keyout /etc/nginx/ssl/${USER_CN}.key \
+        -subj "/C=PL/ST=Warsaw/L=Warsaw/O=42 School/OU=${USER_CN}/CN=${USER_CN}/"
+
+# Zapewnienie, że klucz jest bezpieczny
+RUN chmod 600 /etc/nginx/ssl/${USER_CN}.key
+
+# --- START BLOKU KOPIOWANIA KONFIGURACJI ---
+# Usuń domyślne konfiguracje z Alpine, aby uniknąć konfliktów
 RUN rm -f /etc/nginx/http.d/default.conf 2>/dev/null || true
-COPY conf.d/default.conf /etc/nginx/http.d/default.conf
 
-# Entrypoint (generowanie certu, start w foreground)
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# KROK 1: Kopiowanie głównej konfiguracji Nginx (z blokiem http)
+# Pamiętaj: ten plik musi zawierać kontekst 'http { ... include /etc/nginx/conf.d/*.conf; }'
+COPY ./conf.d/nginx.conf /etc/nginx/nginx.conf
 
-VOLUME ["/var/www/html", "/var/log/nginx"]
+# KROK 2: Kopiowanie konfiguracji serwera (z blokiem server)
+COPY ./conf.d/default.conf /etc/nginx/conf.d/default.conf
+# --- KONIEC BLOKU KOPIOWANIA KONFIGURACJI ---
+
+
+RUN mkdir -p /run/nginx
+
 EXPOSE 443
 
-HEALTHCHECK --interval=10s --timeout=3s --retries=12 \
-  CMD curl -kfsS https://localhost/ >/dev/null || exit 1
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["nginx","-g","daemon off;"]
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]

@@ -65,7 +65,7 @@ services:
     ports:
       - "443:443"
     volumes:
-      - ${DATA_PATH}/wp:/var/www/html:ro
+      - ${DATA_PATH}/wp:/var/www/html
     networks: [inception]
     depends_on:
       - wordpress

@@ -1,37 +1,58 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-DB_PASS="$(cat "$DB_PASSWORD_FILE")"
+WP_CONFIG_FILE=/var/www/html/wp-config.php
+WP_SOURCE_DIR=/usr/src/wordpress
 
-mkdir -p /var/www/html
-chown -R nobody:nogroup /var/www/html
-
-# Jeżeli brak instalacji – wykonaj idempotentnie
-if [ ! -f /var/www/html/wp-config.php ]; then
-  wp core download --path=/var/www/html --allow-root
-
-  wp config create \
-    --path=/var/www/html \
-    --dbname="$DB_NAME" \
-    --dbuser="$DB_USER" \
-    --dbpass="$DB_PASS" \
-    --dbhost="$DB_HOST" \
-    --dbcollate="" \
-    --allow-root
-
-  wp core install \
-    --path=/var/www/html \
-    --url="https://${DOMAIN_NAME}/" \
-    --title="$WP_TITLE" \
-    --admin_user="$WP_ADMIN_USR" \
-    --admin_password="$DB_PASS" \
-    --admin_email="$WP_ADMIN_EMAIL" \
-    --skip-email \
-    --allow-root
-
-  # opcjonalnie drugi user (możesz usunąć)
-  wp user create editor editor@example.com --role=editor \
-     --user_pass="$DB_PASS" --path=/var/www/html --allow-root
+# --- KROK 1: Kopiowanie plików WP do woluminu (tylko przy pierwszym uruchomieniu) ---
+# Sprawdzamy, czy katalog /var/www/html jest pusty.
+if [ ! "$(ls -A /var/www/html 2>/dev/null)" ]; then
+    echo "ℹ️ Wolumin /var/www/html jest pusty. Kopiowanie plików WP z obrazu na host..."
+    
+    # Kopiowanie plików, w tym ukrytych (.htaccess, jeśli istnieje)
+    cp -r $WP_SOURCE_DIR/. /var/www/html/
+    
+    # NADAJ UPRAWNIENIA WŁAŚCIWE DLA PHP-FPM (www_data)
+    chown -R www_data:www_data /var/www/html
+    
+    echo "✅ Kopiowanie i ustawianie uprawnień zakończone."
 fi
 
-exec "$@"
+# --- KROK 2: Generowanie lub używanie wp-config.php ---
+
+# Auto-generate wp-config.php if it doesn't exist
+if [ ! -f "$WP_CONFIG_FILE" ]; then
+    echo "ℹ️ Generowanie wp-config.php..."
+    cat > "$WP_CONFIG_FILE" <<EOL
+<?php
+// ZMIENIONE: Używamy zmiennych MYSQL_* z Twojego .env
+define('DB_NAME', '${MYSQL_DATABASE}');
+define('DB_USER', '${MYSQL_USER}');
+define('DB_PASSWORD', '${cat "${DB_PASSWORD_FILE}}');
+define('DB_HOST', 'mariadb'); // Używamy nazwy serwisu Docker Compose
+define('DB_CHARSET', 'utf8mb4');
+define('DB_COLLATE', '');
+
+define('AUTH_KEY',         '$(openssl rand -base64 32)');
+define('SECURE_AUTH_KEY',  '$(openssl rand -base64 32)');
+define('LOGGED_IN_KEY',    '$(openssl rand -base64 32)');
+define('NONCE_KEY',        '$(openssl rand -base64 32)');
+define('AUTH_SALT',        '$(openssl rand -base64 32)');
+define('SECURE_AUTH_SALT', '$(openssl rand -base64 32)');
+define('LOGGED_IN_SALT',   '$(openssl rand -base64 32)');
+define('NONCE_SALT',       '$(openssl rand -base64 32)');
+
+\$table_prefix = '${WORDPRESS_TABLE_PREFIX:-wp_}';
+define('WP_DEBUG', false);
+
+if ( ! defined( 'ABSPATH' ) ) {
+    define( 'ABSPATH', __DIR__ . '/' );
+}
+require_once ABSPATH . 'wp-settings.php';
+EOL
+    chown www_data:www_data "$WP_CONFIG_FILE"
+fi
+
+# --- KROK 3: Start PHP-FPM ---
+echo "🚀 Uruchamiam PHP-FPM..."
+exec /usr/sbin/php-fpm82 -F
