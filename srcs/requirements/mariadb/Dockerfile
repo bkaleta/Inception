@@ -12,6 +12,8 @@ RUN mkdir -p /var/lib/mysql /run/mysqld \
 COPY entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+WORKDIR /var/lib/mysql
+
 # Port and Volumen
 EXPOSE 3306
 VOLUME ["/var/lib/mysql"]

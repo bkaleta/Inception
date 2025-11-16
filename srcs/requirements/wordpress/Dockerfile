@@ -1,7 +1,7 @@
 FROM alpine:3.22
 
 RUN apk update && apk upgrade
-RUN apk add --no-cache php82 php82-fpm php82-mysqli bash unzip curl openssl
+RUN apk add --no-cache php82 php82-fpm php82-mysqli bash unzip curl openssl mariadb-client 
 
 # Create system user and group 'www_data' (Alpine-safe)
 RUN addgroup -S www_data && \

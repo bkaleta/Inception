@@ -8,6 +8,7 @@ DB_NAME="${DB_NAME:-${MYSQL_DATABASE}}"
 DB_USER="${DB_USER:-${MYSQL_USER}}"
 DB_PASS="$(cat "${DB_PASSWORD_FILE}")"
 ROOT_PASS="$(cat "${DB_ROOT_PASSWORD_FILE}")"
+DB_HOST="${MYSQL_HOSTNAME}"
 
 # Katalogi i prawa (po bind-mount trzeba zrobić to TU, nie w Dockerfile)
 mkdir -p "$DB_DIR" "$RUN_DIR"
@@ -43,5 +44,14 @@ SQL
   wait "$pid" || true
 fi
 
-echo "[run] Starting MariaDB (TCP :3306, 0.0.0.0)..."
-exec mysqld --user=mysql --datadir="$DB_DIR" --bind-address=0.0.0.0 --port=3306
+# --- Enforce TCP listen on 3306 ---
+mkdir -p /etc/my.cnf.d
+cat >/etc/my.cnf.d/zz-override.cnf <<'CNF'
+[mysqld]
+bind-address = 0.0.0.0
+port = 3306
+skip-networking = 0
+CNF
+
+echo "[run] Starting MariaDB (TCP :3306, 0.0.0.0)…"
+exec mysqld --user=mysql --datadir="$DB_DIR" --bind-address=0.0.0.0 --port=3306 --skip-networking=0

@@ -2,34 +2,41 @@
 set -e
 
 WP_CONFIG_FILE=/var/www/html/wp-config.php
-WP_SOURCE_DIR=/usr/src/wordpress
+WP_DIR=/var/www/html
+WP_SOURCE_DIR=/usr/src/wordpress   # jeśli w obrazie masz skopiowane źródła WP
+TABLE_PREFIX="${WORDPRESS_TABLE_PREFIX:-wp_}"
 
-# --- KROK 1: Kopiowanie plików WP do woluminu (tylko przy pierwszym uruchomieniu) ---
-# Sprawdzamy, czy katalog /var/www/html jest pusty.
-if [ ! "$(ls -A /var/www/html 2>/dev/null)" ]; then
-    echo "ℹ️ Wolumin /var/www/html jest pusty. Kopiowanie plików WP z obrazu na host..."
-    
-    # Kopiowanie plików, w tym ukrytych (.htaccess, jeśli istnieje)
-    cp -r $WP_SOURCE_DIR/. /var/www/html/
-    
-    # NADAJ UPRAWNIENIA WŁAŚCIWE DLA PHP-FPM (www_data)
-    chown -R www_data:www_data /var/www/html
-    
-    echo "✅ Kopiowanie i ustawianie uprawnień zakończone."
+# Sekrety/zmienne z compose/secrets
+DB_NAME="${MYSQL_DATABASE}"
+DB_USER="${MYSQL_USER}"
+DB_PASS="$(cat "${DB_PASSWORD_FILE}")"
+DB_HOST="${MYSQL_HOSTNAME}"
+
+echo "ℹ️  Sprawdzam zawartość ${WP_DIR}…"
+if [ ! "$(ls -A "$WP_DIR" 2>/dev/null)" ]; then
+  echo "ℹ️  Wolumin jest pusty."
+
+  if [ -d "${WP_SOURCE_DIR}" ] && [ -f "${WP_SOURCE_DIR}/wp-settings.php" ]; then
+    echo "ℹ️  Kopiuję WordPress z obrazu (${WP_SOURCE_DIR} → ${WP_DIR})…"
+    cp -r "${WP_SOURCE_DIR}/." "${WP_DIR}/"
+  else
+    echo "ℹ️  Brak ${WP_SOURCE_DIR}. Pobieram WordPress przez WP-CLI…"
+    wp core download --path="${WP_DIR}" --allow-root
+  fi
 fi
 
-# --- KROK 2: Generowanie lub używanie wp-config.php ---
+# Własność katalogu dla php-fpm (u Ciebie to nobody:nogroup)
+chown -R nobody:nogroup "${WP_DIR}"
 
-# Auto-generate wp-config.php if it doesn't exist
-if [ ! -f "$WP_CONFIG_FILE" ]; then
-    echo "ℹ️ Generowanie wp-config.php..."
-    cat > "$WP_CONFIG_FILE" <<EOL
+# Tworzenie wp-config.php (jeśli nie istnieje)
+if [ ! -f "${WP_CONFIG_FILE}" ]; then
+  echo "ℹ️  Generuję wp-config.php…"
+  cat > "${WP_CONFIG_FILE}" <<EOL
 <?php
-// ZMIENIONE: Używamy zmiennych MYSQL_* z Twojego .env
-define('DB_NAME', '${MYSQL_DATABASE}');
-define('DB_USER', '${MYSQL_USER}');
-define('DB_PASSWORD', '${cat "${DB_PASSWORD_FILE}}');
-define('DB_HOST', 'mariadb'); // Używamy nazwy serwisu Docker Compose
+define('DB_NAME', '${DB_NAME}');
+define('DB_USER', '${DB_USER}');
+define('DB_PASSWORD', '${DB_PASS}');
+define('DB_HOST', '${DB_HOST}');
 define('DB_CHARSET', 'utf8mb4');
 define('DB_COLLATE', '');
 
@@ -42,17 +49,17 @@ define('SECURE_AUTH_SALT', '$(openssl rand -base64 32)');
 define('LOGGED_IN_SALT',   '$(openssl rand -base64 32)');
 define('NONCE_SALT',       '$(openssl rand -base64 32)');
 
-\$table_prefix = '${WORDPRESS_TABLE_PREFIX:-wp_}';
+\$table_prefix = '${TABLE_PREFIX}';
 define('WP_DEBUG', false);
 
-if ( ! defined( 'ABSPATH' ) ) {
-    define( 'ABSPATH', __DIR__ . '/' );
+if ( ! defined('ABSPATH') ) {
+    define('ABSPATH', _DIR_ . '/');
 }
 require_once ABSPATH . 'wp-settings.php';
 EOL
-    chown www_data:www_data "$WP_CONFIG_FILE"
+
+  chown nobody:nogroup "${WP_CONFIG_FILE}"
 fi
 
-# --- KROK 3: Start PHP-FPM ---
-echo "🚀 Uruchamiam PHP-FPM..."
+echo "🚀 Uruchamiam PHP-FPM…"
 exec /usr/sbin/php-fpm82 -F
