@@ -1,8 +1,8 @@
-FROM nginx:alpine
+FROM alpine:3.19
 
 ARG DOMAIN_NAME=bkaleta.42.fr
 
-RUN apk add --no-cache openssl bash
+RUN apk update && apk add --no-cache nginx openssl bash
 
 RUN mkdir -p /etc/nginx/ssl /run/nginx
 
