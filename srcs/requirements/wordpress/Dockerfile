@@ -1,30 +1,59 @@
 FROM alpine:3.22
 
-RUN apk update && apk upgrade
-RUN apk add --no-cache php82 php82-fpm php82-mysqli bash unzip curl openssl mariadb-client 
+RUN apk update && apk upgrade && apk add --no-cache \
+    bash \
+    curl \
+    unzip \
+    openssl \
+    ca-certificates \
+    mariadb-client \
+    netcat-openbsd \
+    php82 \
+    php82-fpm \
+    php82-mysqli \
+    php82-phar \
+    php82-curl \
+    php82-mbstring \
+    php82-xml \
+    php82-xmlreader \
+    php82-session \
+    php82-openssl \
+    php82-json \
+    php82-zip \
+    php82-gd \
+    php82-exif \
+    php82-intl \
+    php82-pdo \
+    php82-pdo_mysql \
+    php82-opcache
 
-# Create system user and group 'www_data' (Alpine-safe)
-RUN addgroup -S www_data && \
-    adduser -S -G www_data -h /var/www -s /sbin/nologin www_data
+RUN ln -s /usr/bin/php82 /usr/bin/php
 
-# Create WordPress directory and set ownership
-# /var/www/html będzie docelowym woluminem
-RUN mkdir -p /var/www/html && chown -R www_data:www_data /var/www/html
+# instalacja WP-CLI
+RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp \
+    && chmod +x /usr/local/bin/wp
 
-# --- POPRAWKA: Pobieramy pliki do TYMCZASOWEGO katalogu ---
+# standardowy user/group - utwórz tylko jeśli nie istnieją
+RUN grep -q '^www-data:' /etc/group || addgroup -S www-data && \
+    grep -q '^www-data:' /etc/passwd || adduser -S -G www-data -h /var/www -s /sbin/nologin www-data
+
+# katalogi
+RUN mkdir -p /var/www/html /usr/src/wordpress /run/php && \
+    chown -R www-data:www-data /var/www /usr/src/wordpress /run/php
+
+# pobranie WordPressa do źródłowego katalogu obrazu
 WORKDIR /tmp
-RUN mkdir -p /usr/src/wordpress && chown -R www_data:www_data /usr/src/wordpress
 RUN curl -o wordpress.tar.gz -fSL https://wordpress.org/latest.tar.gz && \
     tar -xzf wordpress.tar.gz -C /usr/src/wordpress --strip-components=1 && \
     rm wordpress.tar.gz
 
-# --- KONIEC POPRAWKI ---
+# konfiguracja php-fpm
+RUN sed -i 's|^listen = .*|listen = 0.0.0.0:9000|' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's|^user = .*|user = www-data|' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's|^group = .*|group = www-data|' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's|^;clear_env = no|clear_env = no|' /etc/php82/php-fpm.d/www.conf
 
 WORKDIR /var/www/html
-
-RUN sed -i 's|^listen = .*|listen = 9000|' /etc/php82/php-fpm.d/www.conf && \
-    sed -i 's|^user = .*|user = www_data|' /etc/php82/php-fpm.d/www.conf && \
-    sed -i 's|^group = .*|group = www_data|' /etc/php82/php-fpm.d/www.conf
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
@@ -32,3 +61,4 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 EXPOSE 9000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/usr/sbin/php-fpm82", "-F"]

@@ -1,40 +1,24 @@
-FROM alpine:3.19
+FROM nginx:alpine
 
-# Używamy ARG, aby móc zdefiniować nazwę użytkownika/domeny podczas budowania
-ARG USER_CN=bkaleta
+ARG DOMAIN_NAME=bkaleta.42.fr
 
-RUN apk update && \
-    apk add --no-cache nginx openssl bash
+RUN apk add --no-cache openssl bash
 
-# Tworzenie katalogów SSL
-RUN mkdir -p /etc/nginx/ssl
+RUN mkdir -p /etc/nginx/ssl /run/nginx
 
-# Generowanie certyfikatu SSL i klucza
-# Używamy ścieżek z Twoim loginem: /etc/nginx/ssl/bkaleta.crt i bkaleta.key
-RUN openssl req -newkey rsa:4096 -x509 -sha256 -days 365 -nodes \
-        -out /etc/nginx/ssl/${USER_CN}.crt \
-        -keyout /etc/nginx/ssl/${USER_CN}.key \
-        -subj "/C=PL/ST=Warsaw/L=Warsaw/O=42 School/OU=${USER_CN}/CN=${USER_CN}/"
+RUN openssl req -x509 -nodes -newkey rsa:4096 -sha256 -days 365 \
+    -keyout /etc/nginx/ssl/server.key \
+    -out /etc/nginx/ssl/server.crt \
+    -subj "/C=PL/ST=Warsaw/L=Warsaw/O=42 School/OU=${DOMAIN_NAME}/CN=${DOMAIN_NAME}" \
+    -addext "subjectAltName=DNS:${DOMAIN_NAME}"
 
-# Zapewnienie, że klucz jest bezpieczny
-RUN chmod 600 /etc/nginx/ssl/${USER_CN}.key
+RUN chmod 600 /etc/nginx/ssl/server.key
 
-# --- START BLOKU KOPIOWANIA KONFIGURACJI ---
-# Usuń domyślne konfiguracje z Alpine, aby uniknąć konfliktów
-RUN rm -f /etc/nginx/http.d/default.conf 2>/dev/null || true
+RUN rm -f /etc/nginx/conf.d/default.conf /etc/nginx/http.d/default.conf 2>/dev/null || true
 
-# KROK 1: Kopiowanie głównej konfiguracji Nginx (z blokiem http)
-# Pamiętaj: ten plik musi zawierać kontekst 'http { ... include /etc/nginx/conf.d/*.conf; }'
 COPY ./conf.d/nginx.conf /etc/nginx/nginx.conf
-
-# KROK 2: Kopiowanie konfiguracji serwera (z blokiem server)
 COPY ./conf.d/default.conf /etc/nginx/conf.d/default.conf
-# --- KONIEC BLOKU KOPIOWANIA KONFIGURACJI ---
-
-
-RUN mkdir -p /run/nginx
 
 EXPOSE 443
 
-# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
