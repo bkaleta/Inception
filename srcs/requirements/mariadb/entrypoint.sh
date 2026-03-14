@@ -10,12 +10,12 @@ DB_PASS="$(cat "${DB_PASSWORD_FILE}")"
 ROOT_PASS="$(cat "${DB_ROOT_PASSWORD_FILE}")"
 DB_HOST="${MYSQL_HOSTNAME}"
 
-# Katalogi i prawa (po bind-mount trzeba zrobić to TU, nie w Dockerfile)
+# Catalogs
 mkdir -p "$DB_DIR" "$RUN_DIR"
 chown -R mysql:mysql "$DB_DIR" "$RUN_DIR"
 chmod 750 "$DB_DIR"
 
-# 1) Inicjalizacja przy 1. starcie
+# 1) Init at start
 if [ ! -d "$DB_DIR/mysql" ] || [ ! -f "$DB_DIR/ibdata1" ]; then
   echo "[init] Initializing MariaDB data directory..."
   mariadb-install-db --user=mysql --datadir="$DB_DIR" --rpm >/dev/null
@@ -24,7 +24,7 @@ if [ ! -d "$DB_DIR/mysql" ] || [ ! -f "$DB_DIR/ibdata1" ]; then
   mysqld --user=mysql --datadir="$DB_DIR" --skip-networking --socket="$RUN_DIR/mysqld.sock" &
   pid="$!"
 
-  # Czekamy aż wstanie (socket)
+  # Waiting for (socket)
   for i in $(seq 1 30); do
     [ -S "$RUN_DIR/mysqld.sock" ] && mysql --protocol=socket -uroot -e "SELECT 1" && break
     sleep 1
