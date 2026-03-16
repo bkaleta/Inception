@@ -93,11 +93,11 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /home/${LOGIN}/data/db
+      device: ${DATA_PATH}/db
 
   wp_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: /home/${LOGIN}/data/wp
+      device: ${DATA_PATH}/wp

@@ -46,7 +46,6 @@ clean:
 	@echo "🗑️  Czyszczenie katalogów danych..."
 	@set -a; . $(ENV_FILE); set +a; \
 	sudo rm -rf "$${DATA_PATH}/db" "$${DATA_PATH}/wp"; \
-	mkdir -p "$${DATA_PATH}/db" "$${DATA_PATH}/wp"; \
 	chmod -R 755 "$${DATA_PATH}"; \
 	echo "✅ Dane wyczyszczone."
 
