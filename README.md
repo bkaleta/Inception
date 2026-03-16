@@ -29,3 +29,21 @@ Najczęściej używane komendy Docker Compose
 | **`docker compose exec`**    | Uruchamia komendę w działającym kontenerze (np. `docker compose exec mariadb sh`). |
 | **`docker compose pull`**    | Pobiera obrazy z rejestru (np. jeśli nie chcesz budować ich lokalnie).             |
 | **`docker compose push`**    | Wysyła obrazy do rejestru.                                                         |
+
+nginx test
+    1. curl -I http://localhost
+    2. curl -kI https://localhost
+    3. nc -zv localhost 80
+    4. nc -zv localhost 443
+    5. http://bkaleta.42.fr
+    6. https://bkaleta.42.fr
+
+wordpress
+    1. docker exec -it mariadb sh
+    2. mariadb -u root -p$(cat /run/secrets/db_root_password)
+    3. SHOW DATABASES;
+    4. USE wordpress;
+    5. SHOW TABLES;
+    6. SELECT ID, user_login, user_email FROM wp_users;
+    7. SELECT * FROM wp_usermeta WHERE meta_key='wp_capabilities';
+    8. exit
