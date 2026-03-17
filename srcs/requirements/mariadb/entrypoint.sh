@@ -6,9 +6,8 @@ RUN_DIR="/run/mysqld"
 
 DB_NAME="${DB_NAME:-${MYSQL_DATABASE}}"
 DB_USER="${DB_USER:-${MYSQL_USER}}"
-DB_PASS="$(cat "${DB_PASSWORD_FILE}")"
-ROOT_PASS="$(cat "${DB_ROOT_PASSWORD_FILE}")"
-DB_HOST="${MYSQL_HOSTNAME}"
+DB_PASS="${DB_PASS:-${DB_PASSWORD}}"
+ROOT_PASS="${ROOT_PASS:-${DB_ROOT_PASSWORD}}"
 
 # Catalogs
 mkdir -p "$DB_DIR" "$RUN_DIR"
@@ -24,7 +23,7 @@ if [ ! -d "$DB_DIR/mysql" ] || [ ! -f "$DB_DIR/ibdata1" ]; then
   mysqld --user=mysql --datadir="$DB_DIR" --skip-networking --socket="$RUN_DIR/mysqld.sock" &
   pid="$!"
 
-  # Waiting for (socket)
+  # Waiting for socket
   for i in $(seq 1 30); do
     [ -S "$RUN_DIR/mysqld.sock" ] && mysql --protocol=socket -uroot -e "SELECT 1" && break
     sleep 1
@@ -53,5 +52,5 @@ port = 3306
 skip-networking = 0
 CNF
 
-echo "[run] Starting MariaDB (TCP :3306, 0.0.0.0)…"
+echo "[run] Starting MariaDB (TCP :3306, 0.0.0.0)..."
 exec mysqld --user=mysql --datadir="$DB_DIR" --bind-address=0.0.0.0 --port=3306 --skip-networking=0

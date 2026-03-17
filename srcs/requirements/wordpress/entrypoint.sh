@@ -6,7 +6,7 @@ WP_SOURCE_DIR="/usr/src/wordpress"
 
 DB_NAME="${MYSQL_DATABASE}"
 DB_USER="${MYSQL_USER}"
-DB_PASS="$(cat "${DB_PASSWORD_FILE}")"
+DB_PASS="${DB_PASSWORD}"
 DB_HOST="${MYSQL_HOSTNAME}"
 DB_PORT="${MYSQL_PORT:-3306}"
 
@@ -22,7 +22,7 @@ WP_SECONDARY_ROLE="${WP_USER_ROLE:-author}"
 
 if [ -z "${DB_HOST}" ] || [ -z "${DB_USER}" ] || [ -z "${DB_PASS}" ] || [ -z "${DB_NAME}" ]; then
 	echo "ERROR: Missing DB configuration."
-	echo "Required: MYSQL_HOSTNAME, MYSQL_USER, MYSQL_DATABASE, DB_PASSWORD_FILE"
+	echo "Required: MYSQL_HOSTNAME, MYSQL_USER, MYSQL_DATABASE, DB_PASSWORD"
 	exit 1
 fi
 
