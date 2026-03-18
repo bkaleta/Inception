@@ -3,54 +3,61 @@ set -e
 
 DB_DIR="/var/lib/mysql"
 RUN_DIR="/run/mysqld"
+CNF_FILE="/etc/my.cnf.d/zz-custom.cnf"
+INIT_SQL="/tmp/init.sql"
 
-DB_NAME="${DB_NAME:-${MYSQL_DATABASE}}"
-DB_USER="${DB_USER:-${MYSQL_USER}}"
-DB_PASS="${DB_PASS:-${DB_PASSWORD}}"
-ROOT_PASS="${ROOT_PASS:-${DB_ROOT_PASSWORD}}"
-
-# Catalogs
-mkdir -p "$DB_DIR" "$RUN_DIR"
+mkdir -p "$DB_DIR" "$RUN_DIR" /etc/my.cnf.d
 chown -R mysql:mysql "$DB_DIR" "$RUN_DIR"
 chmod 750 "$DB_DIR"
 
-# 1) Init at start
+FIRST_INIT=0
 if [ ! -d "$DB_DIR/mysql" ] || [ ! -f "$DB_DIR/ibdata1" ]; then
-  echo "[init] Initializing MariaDB data directory..."
-  mariadb-install-db --user=mysql --datadir="$DB_DIR" --rpm >/dev/null
-
-  echo "[init] Starting temporary server (socket only)..."
-  mysqld --user=mysql --datadir="$DB_DIR" --skip-networking --socket="$RUN_DIR/mysqld.sock" &
-  pid="$!"
-
-  # Waiting for socket
-  for i in $(seq 1 30); do
-    [ -S "$RUN_DIR/mysqld.sock" ] && mysql --protocol=socket -uroot -e "SELECT 1" && break
-    sleep 1
-    [ "$i" -eq 30 ] && { echo "[init] MariaDB didn't start for init"; exit 1; }
-  done
-
-  echo "[init] Securing root and creating DB/user..."
-  mysql --protocol=socket -uroot <<-SQL
-    ALTER USER 'root'@'localhost' IDENTIFIED BY '${ROOT_PASS}';
-    CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
-    GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
-    FLUSH PRIVILEGES;
-SQL
-
-  mysqladmin --protocol=socket -uroot -p"${ROOT_PASS}" shutdown
-  wait "$pid" || true
+	FIRST_INIT=1
 fi
 
-# --- Enforce TCP listen on 3306 ---
-mkdir -p /etc/my.cnf.d
-cat >/etc/my.cnf.d/zz-override.cnf <<'CNF'
+if [ "$FIRST_INIT" -eq 1 ]; then
+	echo "[init] Initializing MariaDB data directory..."
+	mariadb-install-db --user=mysql --datadir="$DB_DIR" --rpm >/dev/null
+
+	echo "[init] Creating init.sql..."
+	cat > "$INIT_SQL" <<EOF
+CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+ALTER USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+	chmod 600 "$INIT_SQL"
+	chown mysql:mysql "$INIT_SQL"
+
+	cat > "$CNF_FILE" <<EOF
 [mysqld]
+user = mysql
+pid-file = /run/mysqld/mysqld.pid
+datadir = /var/lib/mysql
+socket = /run/mysqld/mysqld.sock
 bind-address = 0.0.0.0
 port = 3306
 skip-networking = 0
-CNF
+init_file = /tmp/init.sql
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+EOF
+else
+	cat > "$CNF_FILE" <<EOF
+[mysqld]
+user = mysql
+pid-file = /run/mysqld/mysqld.pid
+datadir = /var/lib/mysql
+socket = /run/mysqld/mysqld.sock
+bind-address = 0.0.0.0
+port = 3306
+skip-networking = 0
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+EOF
+fi
 
-echo "[run] Starting MariaDB (TCP :3306, 0.0.0.0)..."
-exec mysqld --user=mysql --datadir="$DB_DIR" --bind-address=0.0.0.0 --port=3306 --skip-networking=0
+echo "[run] Starting MariaDB..."
+exec mysqld --user=mysql --datadir="$DB_DIR"

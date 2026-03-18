@@ -43,10 +43,9 @@ ps:
 clean:
 	@echo "🧹 Zatrzymywanie i usuwanie kontenerów..."
 	$(COMPOSE) down -v --remove-orphans
-	@echo "🗑️  Czyszczenie katalogów danych..."
+	@echo "🗑️  Usuwanie katalogu danych..."
 	@set -a; . $(ENV_FILE); set +a; \
-	sudo rm -rf "$${DATA_PATH}/db" "$${DATA_PATH}/wp"; \
-	chmod -R 755 "$${DATA_PATH}"; \
+	sudo rm -rf "$${DATA_PATH}"; \
 	echo "✅ Dane wyczyszczone."
 
 hostsclean:
