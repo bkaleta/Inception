@@ -1,31 +1,50 @@
+*This project has been created as part of the 42 curriculum by <bkaleta>*
+
 # USER_DOC
 
 ## Overview
 
-This project provides a containerized WordPress environment using Docker
-Compose. It consists of three services: - NGINX (HTTPS server) -
-WordPress (PHP-FPM) - MariaDB (database)
+This project provides you with three services 
+    WordPress (PHP-FPM)
+    NGINX (HTTPS server)
+    MariaDB (database)
+
+All three services are stored in "containers" which are separate boxes 
+sharing OS core which makes them fast to build.
+All three services share network and are able to "speak" with each other.
 
 ------------------------------------------------------------------------
 
 ## Available Services
 
--   Website: https://`<your-domain>`{=html}
--   WordPress Admin Panel: https://`<your-domain>`{=html}/wp-admin
+-   Website: https://your-domain
+-   WordPress Admin Panel: https://your-domain/wp-admin
 
 ------------------------------------------------------------------------
 
 ## Starting the Project
 
 To start the project:
+After downloading the repository go it root and use following commands.
+Please check if you are in right folder you have to be in a place where
+you have Makefile.
 
-make or docker compose up -d --build
+------------------------------------------------------------------------
+## Building the Project
+
+if you use command "make" the project will build it self from the scrach 
+using docker compose so you can use it for a shortcut or go with command
+docker compose up -d --build 
+
+to use docker compose up -d --build you have to go to srcs file and use
+it there
 
 ------------------------------------------------------------------------
 
 ## Stopping the Project
 
-docker compose down
+in order to stop the containers please use make down or 
+docker compose down similarlly as in the previous section
 
 ------------------------------------------------------------------------
 
@@ -33,21 +52,23 @@ docker compose down
 
 Open in browser:
 
-https://`<your-domain>`{=html}
+https://your-domain
 
 ------------------------------------------------------------------------
 
 ## Accessing Admin Panel
 
-https://`<your-domain>`{=html}/wp-admin
+Open in browser:
 
-Use credentials defined in `.env` file.
+https://your-domain/wp-admin
+
+Use credentials defined in .env file.
 
 ------------------------------------------------------------------------
 
 ## Credentials
 
-Credentials are stored in: - `.env` file.
+Credentials are stored in: - .env file.
 
 ------------------------------------------------------------------------
 

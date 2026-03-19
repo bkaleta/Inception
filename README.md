@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by`<bkaleta>`{=html}.*
+*This project has been created as part of the 42 curriculum by <bkaleta>*
 
 # Inception
 
@@ -60,7 +60,7 @@ NGINX │ │ WordPress │ │ MariaDB
   -----------------------------------------------------------------------
   Environment Variables               Docker Secrets
   ----------------------------------- -----------------------------------
-  Stored in `.env` files              Stored in secure files mounted
+  Stored in ".env" files              Stored in secure files mounted
                                       inside containers
 
   Easy to configure                   More secure for sensitive data
@@ -69,7 +69,7 @@ NGINX │ │ WordPress │ │ MariaDB
                                       variables
   -----------------------------------------------------------------------
 
-In this project: - Most configuration values are stored in `.env` -
+In this project: - Most configuration values are stored in ".env" -
 Database passwords are stored using Docker secrets
 
 ------------------------------------------------------------------------
@@ -87,7 +87,7 @@ Database passwords are stored using Docker secrets
   Default and recommended approach    Often restricted in production
   -----------------------------------------------------------------------
 
-The project uses a custom bridge network (`inception`) so containers can
+The project uses a custom bridge network ("inception") so containers can
 communicate securely.
 
 ------------------------------------------------------------------------
@@ -103,7 +103,7 @@ communicate securely.
 The project uses Docker named volumes to store persistent data while
 ensuring the data is stored on the host inside:
 
-/home/`<login>`{=html}/data
+/home/<login>/data
 
 Persistent volumes: - WordPress files - MariaDB database files
 
@@ -251,8 +251,9 @@ https://mariadb.org/documentation/
 
 # Use of AI Tools
 
-AI tools (including ChatGPT) were used to: - clarify Docker concepts -
-debug container networking issues - improve shell scripts - verify
-configuration approaches - assist in writing documentation
+AI tools (including ChatGPT) were used to: 
+  clarify Docker concepts
+  debug container networking issues 
+  improve shell scripts verify
 
 All code and configuration were reviewed and tested manually.
